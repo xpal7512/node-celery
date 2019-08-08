@@ -1,4 +1,4 @@
-# Celery client for Node.js
+# Celery client for Node.js (Auth Redis fixed in tags/v0.2.8.1)
 
 [![NPM Version](https://img.shields.io/npm/v/node-celery.svg)](https://img.shields.io/npm/v/node-celery.svg)
 [![Downloads](https://img.shields.io/npm/dm/node-celery.svg)](https://img.shields.io/npm/dm/node-celery.svg)
