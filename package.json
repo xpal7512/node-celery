@@ -1,5 +1,5 @@
 {
-    "name": "@ops/node-celery",
+    "name": "@youzan/node-celery",
     "version": "0.0.1",
     "description": "Celery client for Node, based node-celery 2.8.0",
     "author": "Mher Movsisyan <mher.movsisyan@gmail.com>",
