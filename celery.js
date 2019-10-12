@@ -122,27 +122,43 @@ util.inherits(RedisBroker, events.EventEmitter);
 
 function RedisBackend(conf) {
     var self = this;
+    var purl = url.parse(conf.RESULT_BACKEND);
+    var database;
 
-    if (conf.RESULT_BACKEND_OPTIONS.createClient) {
-        self.redis = conf.RESULT_BACKEND_OPTIONS.createClient('backend');
-        self.redis_ex = conf.RESULT_BACKEND_OPTIONS.createClient('backend_ex');
+    if (purl.pathname) {
+      database = purl.pathname.slice(1);
+    }
 
-        self.disconnect = function () {};
+    debug('Connecting to backend...');
+
+    if (purl.auth) {
+        self.redis = redis.createClient(purl.port, purl.hostname, {'auth_pass': purl.auth.split(':')[1]});
+        debug('Authenticating backend...');
+        self.redis.auth(purl.auth.split(':')[1]);
+        debug('Backend authenticated...');
     } else {
-        self.redis = redis.createClient(conf.RESULT_BACKEND_OPTIONS);
-        self.redis_ex = self.redis.duplicate();
-
-        self.disconnect = function() {
-            self.redis_ex.quit();
-            self.redis.quit();
-        };
+        self.redis = redis.createClient(purl.port, purl.hostname);
     }
 
-    for (const client of [self.redis, self.redis_ex]) {
-        client.on('error', function(err) {
-            self.emit('error', err);
-        });
+    // needed because we'll use `psubscribe`
+    var backend_ex = self.redis.duplicate();
+
+    if (database) {
+        self.redis.select(database);
     }
+
+    self.redis.on('error', function(err) {
+        self.emit('error', err);
+    });
+
+    self.redis.on('end', function() {
+        self.emit('end');
+    });
+
+    self.quit = function() {
+        backend_ex.quit();
+        self.redis.quit();
+    };
 
     // store results to emit event when ready
     self.results = {};
@@ -154,7 +170,7 @@ function RedisBackend(conf) {
         debug('Backend connected...');
         // on redis result..
         self.redis.on('pmessage', function(pattern, channel, data) {
-            self.redis_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
+            backend_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
             var message = JSON.parse(data);
             var taskid = channel.slice(key_prefix.length);
             if (self.results.hasOwnProperty(taskid)) {
@@ -165,6 +181,7 @@ function RedisBackend(conf) {
             } else {
                 // in case of incoming messages where we don't have the result object
                 self.emit('message', message);
+
             }
         });
         // subscribe to redis results
@@ -174,7 +191,7 @@ function RedisBackend(conf) {
     });
 
     self.get = function(taskid, cb) {
-        self.redis_ex.get(key_prefix + taskid, cb);
+        backend_ex.get(key_prefix + taskid, cb);
     }
 
     return self;
