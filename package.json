@@ -13,7 +13,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git://github.com/mher/node-celery.git"
+        "url": "git://github.com/xpal7512/node-celery.git"
     },
     "devDependencies": {
         "mocha": "*"
